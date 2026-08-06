@@ -22,6 +22,8 @@ import com.compose.genai.presentation.common.theme.ComposeGenAITheme
 import androidx.hilt.navigation.compose.hiltViewModel
 
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material.icons.automirrored.filled.StopScreenShare
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
@@ -97,6 +99,13 @@ fun ChatContent(
                 items(uiState.messages) { message ->
                     ChatBubble(message)
                 }
+                item {
+                    if (uiState.isLoading){
+                        ChatBubble(message = Message(
+                            text = "AI is typing...", false
+                        ))
+                    }
+                }
             }
 
             // Input Area
@@ -120,7 +129,7 @@ fun ChatContent(
                 Spacer(modifier = Modifier.width(8.dp))
                 IconButton(
                     onClick = onSendMessage,
-                    enabled = uiState.inputText.isNotBlank()
+                    enabled = uiState.inputText.isNotBlank() && !uiState.isLoading
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.Send,
@@ -174,7 +183,6 @@ fun ChatScreenPreview() {
                     Message("Hello!", true),
                     Message("How can I help you?", false),
                     Message("I want to learn Compose.", true),
-                    Message("I want to learn Compose.", true)
                 ),
                 inputText = "Test message"
             ),

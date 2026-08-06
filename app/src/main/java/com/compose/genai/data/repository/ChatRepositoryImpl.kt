@@ -1,5 +1,6 @@
 package com.compose.genai.data.repository
 
+import com.compose.genai.data.local.dao.MessageDao
 import com.compose.genai.domain.repository.ChatRepository
 import com.google.genai.Client
 import com.google.genai.types.GenerateContentConfig
@@ -9,7 +10,8 @@ import okhttp3.Dispatcher
 import javax.inject.Inject
 
 class ChatRepositoryImpl @Inject constructor(
-    private val client: Client
+    private val client: Client,
+    private val messageDao: MessageDao
 ): ChatRepository {
     override suspend fun sendMessage(message: String): String {
         return withContext(Dispatchers.IO){

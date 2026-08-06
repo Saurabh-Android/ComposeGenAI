@@ -1,5 +1,6 @@
 package com.compose.genai.presentation.chat
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.compose.genai.domain.usecase.SendMessageUseCase
@@ -17,7 +18,8 @@ data class Message(
 
 data class ChatState(
     val messages: List<Message> = emptyList(),
-    val inputText: String = ""
+    val inputText: String = "",
+    val isLoading: Boolean = false
 )
 
 @HiltViewModel
@@ -37,16 +39,34 @@ class ChatViewModel @Inject constructor(private val sendMessageUseCase: SendMess
         val newMessage = Message(text = currentText, isUser = true)
         _uiState.value = _uiState.value.copy(
             messages = _uiState.value.messages + newMessage,
-            inputText = ""
+            inputText = "",
+            isLoading = true
         )
 
         /*AI Response*/
         viewModelScope.launch {
-        val response = sendMessageUseCase.execute(currentText)
-            val aiMessage = Message(text = response, isUser = false)
-            _uiState.value = _uiState.value.copy(
-                messages = _uiState.value.messages + aiMessage
-            )
+            try {
+                val response = sendMessageUseCase.execute(currentText)
+                val aiMessage = Message(text = response, isUser = false)
+                _uiState.value = _uiState.value.copy(
+                    messages = _uiState.value.messages + aiMessage
+                )
+            }
+            catch (e: Exception){
+                val fallbackMessage = Message(text = "Sorry, I couldn't connect to Gemini.\n" +
+                        "Please check your internet connection.", isUser = false)
+                _uiState.value = _uiState.value.copy(
+                    messages = _uiState.value.messages + fallbackMessage
+                )
+            }
+            finally {
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false
+                )
+            }
+
         }
     }
 }
+
+
