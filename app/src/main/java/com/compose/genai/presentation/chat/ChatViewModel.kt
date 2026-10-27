@@ -3,6 +3,9 @@ package com.compose.genai.presentation.chat
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.compose.genai.domain.model.Message
+import com.compose.genai.domain.usecase.GetMessageUseCase
+import com.compose.genai.domain.usecase.GetStreamingTextUseCase
 import com.compose.genai.domain.usecase.SendMessageUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -11,19 +14,19 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-data class Message(
-    val text: String,
-    val isUser: Boolean
-)
-
 data class ChatState(
     val messages: List<Message> = emptyList(),
     val inputText: String = "",
-    val isLoading: Boolean = false
+    val isLoading: Boolean = false,
+    val streamingText: String = ""
 )
 
 @HiltViewModel
-class ChatViewModel @Inject constructor(private val sendMessageUseCase: SendMessageUseCase) : ViewModel() {
+class ChatViewModel @Inject constructor(
+    private val sendMessageUseCase: SendMessageUseCase,
+    private val getMessageUseCase: GetMessageUseCase,
+    private val getStreamingTextUseCase: GetStreamingTextUseCase
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ChatState())
     val uiState: StateFlow<ChatState> = _uiState.asStateFlow()
@@ -32,40 +35,53 @@ class ChatViewModel @Inject constructor(private val sendMessageUseCase: SendMess
         _uiState.value = _uiState.value.copy(inputText = newText)
     }
 
+    init {
+        viewModelScope.launch {
+            getMessageUseCase.execute()
+                .collect { messages ->
+                    _uiState.value = _uiState.value.copy(
+                        messages = messages
+                    )
+                }
+        }
+
+        viewModelScope.launch {
+            getStreamingTextUseCase.execute()
+                .collect { message ->
+                    Log.d("STREAMING_VM", message)
+                    _uiState.value = _uiState.value.copy(
+                        streamingText = message
+                    )
+                }
+        }
+    }
+
     fun onSendMessage() {
         val currentText = _uiState.value.inputText
         if(currentText.isBlank()) return
-        /*User Input*/
-        val newMessage = Message(text = currentText, isUser = true)
         _uiState.value = _uiState.value.copy(
-            messages = _uiState.value.messages + newMessage,
             inputText = "",
-            isLoading = true
         )
-
+        setLoading(true)
         /*AI Response*/
         viewModelScope.launch {
             try {
-                val response = sendMessageUseCase.execute(currentText)
-                val aiMessage = Message(text = response, isUser = false)
-                _uiState.value = _uiState.value.copy(
-                    messages = _uiState.value.messages + aiMessage
-                )
+               sendMessageUseCase.execute(currentText)
             }
             catch (e: Exception){
-                val fallbackMessage = Message(text = "Sorry, I couldn't connect to Gemini.\n" +
-                        "Please check your internet connection.", isUser = false)
-                _uiState.value = _uiState.value.copy(
-                    messages = _uiState.value.messages + fallbackMessage
-                )
+                Log.e("ViewModel", e.message.toString())
             }
             finally {
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false
-                )
+                setLoading(false)
             }
 
         }
+    }
+
+    private fun setLoading(isLoading: Boolean){
+        _uiState.value = _uiState.value.copy(
+            isLoading = isLoading
+        )
     }
 }
 

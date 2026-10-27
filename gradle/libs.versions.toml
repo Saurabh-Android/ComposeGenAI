@@ -19,6 +19,7 @@ room = "2.8.4"
 ksp = "2.2.10-2.0.2"
 hiltNavigationCompose = "1.4.0"
 genai = "1.64.0"
+markdownRenderer = "0.37.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -40,6 +41,8 @@ androidx-compose-material-icons-extended = { group = "androidx.compose.material"
 
 #genAI
 google-genai = {group = "com.google.genai", name = "google-genai", version.ref= "genai"}
+#markdown
+multiplatform-markdown-renderer-m3 = { group = "com.mikepenz", name = "multiplatform-markdown-renderer-m3-android", version.ref = "markdownRenderer" }
 
 # Hilt
 hilt-android = { group = "com.google.dagger", name = "hilt-android", version.ref = "hilt" }
