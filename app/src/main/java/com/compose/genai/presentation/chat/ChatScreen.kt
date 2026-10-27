@@ -65,9 +65,15 @@ fun ChatContent(
     val scrollState = rememberLazyListState()
 
     // Scroll to bottom when messages change
-    LaunchedEffect(uiState.messages.size) {
-        if (uiState.messages.isNotEmpty()) {
-            scrollState.animateScrollToItem(uiState.messages.size - 1)
+    LaunchedEffect(uiState.messages.size, uiState.streamingText) {
+        val lastItemIndex = if (uiState.streamingText.isNotBlank()) {
+            uiState.messages.size
+        } else {
+            uiState.messages.size - 1
+        }
+
+        if (lastItemIndex >= 0) {
+            scrollState.scrollToItem(index = lastItemIndex, scrollOffset = Int.MAX_VALUE)
         }
     }
 
