@@ -1,5 +1,6 @@
 package com.compose.genai.presentation.chat
 
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -10,7 +11,7 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -30,6 +31,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -41,6 +43,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.compose.genai.domain.model.Message
 import com.compose.genai.presentation.common.theme.ComposeGenAITheme
 import com.mikepenz.markdown.m3.Markdown
+import com.mikepenz.markdown.model.rememberMarkdownState
 
 @Composable
 fun ChatScreen(
@@ -65,15 +68,38 @@ fun ChatContent(
     val scrollState = rememberLazyListState()
 
     // Scroll to bottom when messages change
-    LaunchedEffect(uiState.messages.size, uiState.streamingText) {
-        val lastItemIndex = if (uiState.streamingText.isNotBlank()) {
+    LaunchedEffect(
+        uiState.streamingText,
+        uiState.messages.size
+    ) {
+        val targetIndex = if (uiState.streamingText.isNotBlank()) {
             uiState.messages.size
         } else {
-            uiState.messages.size - 1
+            uiState.messages.lastIndex
         }
 
-        if (lastItemIndex >= 0) {
-            scrollState.scrollToItem(index = lastItemIndex, scrollOffset = Int.MAX_VALUE)
+        if (targetIndex >= 0) {
+            // scroll upto last item
+            scrollState.scrollToItem(targetIndex)
+
+            // Let Compose calculate the updated layout
+            withFrameNanos { }
+
+            // scroll till bottom of Growing item
+            val layoutInfo = scrollState.layoutInfo
+            val lastItem = layoutInfo.visibleItemsInfo
+                .lastOrNull { it.index == targetIndex }
+
+            if (lastItem != null) {
+                val remainingScroll =
+                    lastItem.offset +
+                            lastItem.size -
+                            layoutInfo.viewportEndOffset
+
+                if (remainingScroll > 0) {
+                    scrollState.scrollBy(remainingScroll.toFloat())
+                }
+            }
         }
     }
 
@@ -111,12 +137,19 @@ fun ChatContent(
                 reverseLayout = false,
                 contentPadding = PaddingValues(vertical = 8.dp)
             ) {
-                items(uiState.messages) { message ->
+                itemsIndexed(
+                    items = uiState.messages,
+                    key = { _, message ->
+                        message.id
+                    }
+                ) { _, message ->
                     ChatBubble(message)
                 }
-                if (uiState.streamingText.isNotBlank()){
-                    item{
-                            ChatBubble(message = Message(
+                if (uiState.streamingText.isNotBlank()) {
+                    item(key = Long.MIN_VALUE) {
+                        ChatBubble(
+                            message = Message(
+                                id = Long.MIN_VALUE,
                                 text = uiState.streamingText,
                                 isUser = false
                             ),
@@ -165,7 +198,11 @@ fun ChatBubble(message: Message, isStreaming: Boolean = false) {
     val alignment = if (message.isUser) Alignment.End else Alignment.Start
     val containerColor = if (message.isUser) Color.LightGray else Color.White
     val contentColor = Color.Black
-
+    val markdownState = rememberMarkdownState(
+        message.text,
+        retainState = true,
+        immediate = true
+    )
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -182,15 +219,13 @@ fun ChatBubble(message: Message, isStreaming: Boolean = false) {
                 bottomEnd = if (message.isUser) 0.dp else 16.dp
             )
         ) {
-
-                Text(
-                    text = message.text,
-                    modifier = Modifier.padding(
-                        horizontal = 12.dp,
-                        vertical = 8.dp
-                    ),
-                    fontSize = 16.sp
-                )
+            Markdown(
+                markdownState,
+                modifier = Modifier.padding(
+                    horizontal = 12.dp,
+                    vertical = 8.dp
+                ),
+            )
             }
 
 
@@ -205,9 +240,9 @@ fun ChatScreenPreview() {
         ChatContent(
             uiState = ChatState(
                 messages = listOf(
-                    Message("Hello!", true),
-                    Message("How can I help you?", false),
-                    Message("I want to learn Compose.", true),
+                    Message(id = 1,"Hello!", true),
+                    Message(2, "How can I help you?", false),
+                    Message(3,"I want to learn Compose.", true),
                 ),
                 inputText = "Test message"
             ),
@@ -221,7 +256,7 @@ fun ChatScreenPreview() {
 @Composable
 fun ChatBubbleUserPreview() {
     ComposeGenAITheme {
-        ChatBubble(Message("Hello, this is a user message!", true))
+        ChatBubble(Message(1, "Hello, this is a user message!", true))
     }
 }
 
@@ -229,6 +264,6 @@ fun ChatBubbleUserPreview() {
 @Composable
 fun ChatBubbleAiPreview() {
     ComposeGenAITheme {
-        ChatBubble(Message("Hello, this is an AI response!", false))
+        ChatBubble(Message(2,"Hello, this is an AI response!", false))
     }
 }

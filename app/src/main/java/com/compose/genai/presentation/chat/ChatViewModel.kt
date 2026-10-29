@@ -11,6 +11,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -46,12 +47,16 @@ class ChatViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
-            getStreamingTextUseCase.execute()
-                .collect { message ->
-                    Log.d("STREAMING_VM", message)
-                    _uiState.value = _uiState.value.copy(
-                        streamingText = message
-                    )
+            getStreamingTextUseCase.execute().collect { chunk ->
+                    _uiState.update { state ->
+                        if(chunk.isEmpty()){
+                            state.copy(streamingText = "")
+                        } else {
+                            state.copy(
+                                streamingText = state.streamingText + chunk
+                            )
+                        }
+                    }
                 }
         }
     }

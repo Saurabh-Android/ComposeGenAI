@@ -39,10 +39,11 @@ class ChatRepositoryImpl @Inject constructor(
 
                 stream.use {
                     for (chunk in it){
-                        completeResponse.append(chunk.text().orEmpty())
-                        _streamingResponse.emit(
-                            completeResponse.toString()
-                        )
+                        val chunkText = chunk.text().orEmpty()
+                        completeResponse.append(chunkText)
+                        if(chunkText.isNotEmpty()){
+                            _streamingResponse.emit(chunkText)
+                        }
                     }
                 }
                 saveMessage(
@@ -70,6 +71,7 @@ class ChatRepositoryImpl @Inject constructor(
                 entities ->
                     entities.map { entity ->
                         Message(
+                            id = entity.id,
                             text = entity.text,
                             isUser = entity.isUser
                         )
